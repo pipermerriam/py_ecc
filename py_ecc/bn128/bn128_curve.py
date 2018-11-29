@@ -11,7 +11,7 @@ from py_ecc.typing import (
 )
 
 from .bn128_field_elements import (
-    field_modulus,
+    FIELD_MODULUS,
     FQ,
     FQ2,
     FQ12,
@@ -19,12 +19,12 @@ from .bn128_field_elements import (
 )
 
 
-curve_order = 21888242871839275222246405745257275088548364400416034343698204186575808495617
+CURVE_ORDER = 21888242871839275222246405745257275088548364400416034343698204186575808495617
 
 # Curve order should be prime
-assert pow(2, curve_order, curve_order) == 2
-# Curve order should be a factor of field_modulus**12 - 1
-assert (field_modulus ** 12 - 1) % curve_order == 0
+assert pow(2, CURVE_ORDER, CURVE_ORDER) == 2
+# Curve order should be a factor of FIELD_MODULUS**12 - 1
+assert (FIELD_MODULUS ** 12 - 1) % CURVE_ORDER == 0
 
 # Curve is y**2 = x**3 + 3
 b = FQ(3)

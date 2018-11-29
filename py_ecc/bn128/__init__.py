@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 
 from .bn128_field_elements import (  # noqa: F401
-    field_modulus,
+    FIELD_MODULUS,
     FQ,
     FQP,
     FQ2,
