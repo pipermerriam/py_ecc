@@ -1,6 +1,5 @@
-from __future__ import absolute_import
-
 import sys
+from numba import jit
 
 from typing import (
     cast,
@@ -14,9 +13,9 @@ sys.setrecursionlimit(10000)
 
 
 # The prime modulus of the field
-field_modulus = 21888242871839275222246405745257275088696311157297823662689037894645226208583
+FIELD_MODULUS = 21888242871839275222246405745257275088696311157297823662689037894645226208583
 # See, it's prime!
-assert pow(2, field_modulus, field_modulus) == 2
+assert pow(2, FIELD_MODULUS, FIELD_MODULUS) == 2
 
 # The modulus of the polynomial in this representation of FQ12
 FQ12_MODULUS_COEFFS = [82, 0, 0, 0, 0, 0, -18, 0, 0, 0, 0, 0]  # Implied + [1]
@@ -25,6 +24,7 @@ FQ2_MODULUS_COEFFS = [1, 0]
 
 # Extended euclidean algorithm to find modular inverses for
 # integers
+@jit(nopython=True)
 def inv(a: int, n: int) -> int:
     if a == 0:
         return 0
@@ -37,6 +37,26 @@ def inv(a: int, n: int) -> int:
     return lm % n
 
 
+@jit(nopython=True)
+def _fq_add(a: int, b: int):
+    return (a + b) % FIELD_MODULUS
+
+
+@jit(nopython=True)
+def _fq_sub(a: int, b: int):
+    return (a - b) % FIELD_MODULUS
+
+
+@jit(nopython=True)
+def _fq_mul(a: int, b: int):
+    return (a * b) % FIELD_MODULUS
+
+
+@jit(nopython=True)
+def _fq_div(a: int, b: int):
+    return (a * inv(b, FIELD_MODULUS)) % FIELD_MODULUS
+
+
 # A class for field elements in FQ. Wrap a number in this class,
 # and it becomes a field element.
 class FQ(object):
@@ -46,16 +66,23 @@ class FQ(object):
         if isinstance(val, FQ):
             self.n = val.n
         else:
-            self.n = val % field_modulus
+            self.n = val % FIELD_MODULUS
         assert isinstance(self.n, int)
 
     def __add__(self, other: Union[int, "FQ"]) -> "FQ":
-        on = other.n if isinstance(other, FQ) else other
-        return FQ((self.n + on) % field_modulus)
+        return _fq_add(self.n, other.n if isinstance(other, FQ) else other)
+
+    def __sub__(self, other: Union[int, "FQ"]) -> "FQ":
+        return _fq_sub(self.n, other.n if isinstance(other, FQ) else other)
 
     def __mul__(self, other: Union[int, "FQ"]) -> "FQ":
-        on = other.n if isinstance(other, FQ) else other
-        return FQ((self.n * on) % field_modulus)
+        return _fq_mul(self.n, other.n if isinstance(other, FQ) else other)
+
+    def __div__(self, other: Union[int, "FQ"]) -> "FQ":
+        return _fq_div(self.n, other.n if isinstance(other, FQ) else other)
+
+    def __truediv__(self, other: Union[int, "FQ"]) -> "FQ":
+        return self.__div__(other)
 
     def __rmul__(self, other: Union[int, "FQ"]) -> "FQ":
         return self * other
@@ -64,25 +91,10 @@ class FQ(object):
         return self + other
 
     def __rsub__(self, other: Union[int, "FQ"]) -> "FQ":
-        on = other.n if isinstance(other, FQ) else other
-        return FQ((on - self.n) % field_modulus)
-
-    def __sub__(self, other: Union[int, "FQ"]) -> "FQ":
-        on = other.n if isinstance(other, FQ) else other
-        return FQ((self.n - on) % field_modulus)
-
-    def __div__(self, other: Union[int, "FQ"]) -> "FQ":
-        on = other.n if isinstance(other, FQ) else other
-        assert isinstance(on, int)
-        return FQ(self.n * inv(on, field_modulus) % field_modulus)
-
-    def __truediv__(self, other: Union[int, "FQ"]) -> "FQ":
-        return self.__div__(other)
+        return self - other
 
     def __rdiv__(self, other: Union[int, "FQ"]) -> "FQ":
-        on = other.n if isinstance(other, FQ) else other
-        assert isinstance(on, int), on
-        return FQ(inv(self.n, field_modulus) * on % field_modulus)
+        return self / other
 
     def __rtruediv__(self, other: Union[int, "FQ"]) -> "FQ":
         return self.__rdiv__(other)
